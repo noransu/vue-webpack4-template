@@ -36,7 +36,7 @@ module.exports = merge(baseConfig, {
         use: [
           'vue-style-loader',
           'css-loader',
-          'stylus-loader'
+          'less-loader'
         ]
       }
     ]
