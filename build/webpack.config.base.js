@@ -4,7 +4,14 @@ const HtmlWebpackPlugin = require('html-webpack-plugin')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 const { VueLoaderPlugin } = require('vue-loader')
 
-const utils = require('./utils')
+const path = require('path');
+const utils = require('./utils');
+
+const isProd = process.env.NODE_ENV === 'production';
+const assetPath = path.resolve(__dirname, '../dist');
+const assetsPublic = isProd ? 'https://h5-promo.black-unique.com/promo/public/' : './';
+const outputFileName = isProd ? 'js/[name].[contenthash].js' : '[name].js';
+const outputChunkFile = isProd ? 'js/[name].[contenthash].chunk.js' : '[name].chunk.js';
 
 module.exports = {
   resolve: {
@@ -15,6 +22,15 @@ module.exports = {
       'static': utils.resolve('static'),
       'components': utils.resolve('src/components')
     }
+  },
+  output: {
+    // 输出文件目录
+    path: assetPath,
+    // entry入口js文件名
+    filename: outputFileName,
+    // 动态加载的文件，在这里指vendor和各自页面需要引用的js文件
+    chunkFilename: outputChunkFile,
+    publicPath: assetsPublic,
   },
 
   module: {
