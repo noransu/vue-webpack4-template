@@ -1,0 +1,76 @@
+@scale: 0.5;
+
+// 添加图片 - 统一处理、后续可能直接读 CDN
+.background-image(@url, @rest...) {
+  & when (@rest = ~'') {
+    background: url("@{url}") no-repeat center / contain;
+  }
+
+  & when not (@rest = ~'') {
+    background: url("@{url}") @rest;
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shineBgAppear {
+  0% {
+    transform: scale(0);
+    // margin-top: 375px;
+  }
+
+  100% {
+    transform: scale(1);
+    // margin-top: 0;
+  }
+}
+
+@keyframes scaleY {
+  0% {
+    transform: scale(0);
+    margin-top: 100px * @scale;
+  }
+  100% {
+    transform: scale(1);
+    margin-top: 0px;
+  }
+}
+
+@keyframes fallY {
+  0% {
+    margin-top: -915px * @scale;
+  }
+  100% {
+    margin-top: 145px * @scale;
+  }
+}
+
+@keyframes scale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes appear {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}

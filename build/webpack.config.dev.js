@@ -32,7 +32,7 @@ module.exports = merge(baseConfig, {
           'css-loader'
         ]
       }, {
-        test: /\.styl(us)?$/,
+        test: /\.less?$/,
         use: [
           'vue-style-loader',
           'css-loader',
