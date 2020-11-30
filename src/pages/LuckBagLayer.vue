@@ -1,10 +1,9 @@
 <template>
   <!-- 开福袋遮盖层 -->
-  <!-- <van-overlay :show="showOverlay" zIndex="1000" style="background-color: rgba(0, 0, 0, 0.8)"> -->
-    <div>
-      <transition name="fade">
-        <div v-if="showOverlay" class="container">
-        <div v-if="!isBagOpened" v-intersection class="overlay-wrapper"
+  <div>
+    <transition name="fade">
+      <div v-if="showOverlay" class="container">
+        <div v-if="showFirstBag" v-intersection class="overlay-wrapper"
             :data-log="formatLuckBagLayerData()">
           <div class="shine-bg shining" />
           <div class="overlay-top">
@@ -14,19 +13,62 @@
               <i class="dot reverse"></i>
             </div>
             <div class="big-title">看视频即可开福袋</div>
-            <div class="sub-title" @click.stop="lookVideo" />
+            <div class="sub-title" @click.stop="watchVideo" />
           </div>
-
           <div class="overlay-content">
             <div class="open-bag">
-              <span id="openBtn" class="open-btn" @click.stop="lookVideo" />
+              <span id="openBtn" class="open-btn" @click.stop="watchVideo" />
             </div>
             <i class="round-close-btn" @click="closeOverlay" />
           </div>
         </div>
+        <!-- <div v-else-if="showDoubleBag" v-intersection 
+            :data-log="formatLuckBagSwellData()" class="overlay-double-content">
+          <div class="overlay-title" />
+          <div class="bags-wrapper">
+            <div>
+              <span class="small-bag" />
+              <span class="arrow-wrap">
+                <span class="arrow-right" />
+              </span>
+              <span class="big-bag">
+                <span class="open-btn" @click="swell('swell')" />
+              </span>
+            </div>
+            <i class="close-btn" @click="closeOverlay" />
+          </div>
+        </div> -->
+        <div v-else-if="showDoubleBag" v-intersection 
+             class="overlay-wrapper" :data-log="formatLuckBagSwellData()">
+          <div class="shine-bg shining" />
+          <div class="overlay-title" style="margin-bottom: -20px;">
+            <i class="dot" />
+            <span class="text">恭喜获得福袋奖励金</span>
+            <i class="dot reverse"></i>
+          </div>
+          <div class="overlay-content">
+            <div class="result-num">
+              <span class="unit">￥</span>
+              <span class="number">{{ reward }}</span>
+            </div>
+            <div class="result-swell__text">再看视频奖励金最高可膨胀<span>5</span>倍</div>
+            <div class="opened-bag">
+            <!-- <span class="opened-tips">您已经拆开过该福袋啦</span> -->
+              <span class="checkup-btn" @click="watchDoubleVideo">我要膨胀</span>
+            </div>
+            <i class="round-close-btn top-0" @click="closeOverlay" />
+          </div>
+          <!-- <div v-if="adSingle.length>0 && showAd" class="banner-wrapper">
+            <div class="advertise"
+                :style="`background:url(${adSingle[0].logo}) no-repeat cover;`"
+                @click="jumpLuckBugAd(adSingle[0].url)"
+            />
+            <i class="ad-close" @click="closeAd" />
+          </div> -->
+        </div>
         <div v-else v-intersection class="overlay-wrapper" :data-log="formatOpenedLuckBagData()">
           <div class="shine-bg shining" />
-          <div class="overlay-title">
+          <div class="overlay-title" style="margin-bottom: -20px;">
             <i class="dot" />
             <span class="text">恭喜获得福袋奖励金</span>
             <i class="dot reverse"></i>
@@ -38,8 +80,8 @@
             </div>
             <div class="result-tips">已存入您的账户中</div>
             <div class="opened-bag">
-              <!-- <span class="opened-tips">您已经拆开过该福袋啦</span> -->
-              <span class="checkup-btn" @click="checkupClick" />
+            <!-- <span class="opened-tips">您已经拆开过该福袋啦</span> -->
+              <span class="checkup-btn" @click="withdrawMoney">立即提现</span>
             </div>
             <i class="round-close-btn top-0" @click="closeOverlay" />
           </div>
@@ -53,14 +95,11 @@
         </div>
       </div>
     </transition>
-    <Toast toastText="您已经拆开过该福袋啦"
-           :showToast.sync="visible" />
+    
   </div>
 </template>
 
 <script>
-// import { Toast } from 'vant';
-import Toast from '../components/toast.vue';
 import { playBottomAdVideo, dismissBottomAd } from '../../utils/native';
 
 const ua = window.navigator.userAgent.toLowerCase();
@@ -82,29 +121,32 @@ export default {
   props: {
     showOverlay: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     closeOverlay: Function,
-    checkupClick: Function,
-    isBagOpened: {
+    showFirstBag: {
+      type: Boolean,
+      default: true,
+    },
+    showDoubleBag: {
       type: Boolean,
       default: false,
     },
+    watchVideo: Function,
+    watchDoubleVideo: Function,
     reward: {
       type: [Number, String],
       default: 0,
     },
   },
   components: {
-    Toast,
   },
   data() {
     return {
-      visible: false,
     };
   },
   mounted() {
-    this.$watch(vm => [vm.showOverlay, vm.isBagOpened]
+    this.$watch(vm => [vm.showOverlay, vm.showFirstBag, vm.showDoubleBag]
       .join(), newVal => {
       const newArr = newVal.split(',');
       const existTrue = newArr.find(item => item === 'true');
@@ -114,25 +156,23 @@ export default {
           ios: '945343003',
           byAdId: isIOS ? '10003319' : '10003318',
         });
-        // TODO taost组件
-        // this.isBagOpened && Toast({
-        //   message: '您已经拆开过该福袋啦',
-        //   duration: 2000,
-        // });
+        if(this.showOverlay && !this.showFirstBag && !this.showDoubleBag) {
+          this.$parent.duratin = 2000;
+          this.$parent.toastText = '您已经拆开过该福袋啦';
+          this.$parent.showToast = true;
+        }
       } else {
         dismissBottomAd();
       }
     });
-    this.visible = true;
-    console.warn('showToast',this.visible);
   },
   beforeDestroy() {
     dismissBottomAd();
   },
   methods: {
-    lookVideo() {
-      this.$emit('lookVideo');
-    },
+    // watchVideo() {
+    //   this.$emit('watchVideo');
+    // },
 
     formatLuckBagLayerData() {
       return JSON.stringify({
@@ -146,6 +186,14 @@ export default {
       return JSON.stringify({
         event: 'page_view',
         obj_id: 'popup_fudai_opened',
+        obj_type: 'page_fudai',
+      });
+    },
+
+    formatLuckBagSwellData() {
+      return JSON.stringify({
+        event: 'page_view',
+        obj_id: 'double_popup_fudai_open',
         obj_type: 'page_fudai',
       });
     },
@@ -320,6 +368,7 @@ export default {
         color: #ffce27;
         letter-spacing: 0;
         text-align: center;
+        margin-right: 20px * @scale;
 
         .unit {
           font-size: 44px * @scale;
@@ -331,6 +380,23 @@ export default {
           font-size: 100px * @scale;
           line-height: 130px * @scale;
           letter-spacing: -6px * @scale;
+        }
+      }
+
+      .result-swell__text {
+        font-size: 30px * @scale;
+        font-family: PingFangSC-Regular, PingFang SC;
+        font-weight: 400;
+        color: #ffffff;
+        line-height: 42px * @scale;
+        & span {
+          display: inline-block;
+          font-size: 58px * @scale;
+          font-family: PingFangSC-Semibold, PingFang SC;
+          font-weight: 600;
+          color: #f04221;
+          line-height: 25px * @scale;
+          padding: 0 8px * @scale;
         }
       }
 
@@ -372,15 +438,23 @@ export default {
       }
 
       .checkup-btn {
+        display: flex;
+        justify-content: center;
+        align-items: center;
         position: relative;
         left: 50%;
         top: 410px * @scale;
         transform: translateX(-50%);
-        display: inline-block;
         width: 256px * @scale;
         height: 70px * @scale;
-        .background-image("https://h5-promo.black-unique.com/slime/images/7d6d02fcd63761be53cdce395ea12c4d.png");
-        border-radius: 34.39px * @scale;
+        .background-image("https://h5-promo.black-unique.com/slime/images/e4fcfc957d4049cdd093e3e7334b948f.png");
+        // border-radius: 34.39px * @scale;
+        font-size: 34px * @scale;
+        font-family: PingFangSC-Semibold, PingFang SC;
+        font-weight: 600;
+        color: #963700;
+        line-height: 48px * @scale;
+        text-shadow: 0px 2px * @scale 0px #fee962;
       }
 
       .top-0 {
@@ -388,6 +462,93 @@ export default {
       }
     }
   }
+
+  // .overlay-double-content {
+  //   position: relative;
+  //   height: calc(100% - 150px * @scale);
+  //   // display: flex;
+  //   // flex-direction: column;
+  //   // justify-content: center;
+  //   // align-items: center;
+
+  //   .overlay-title {
+  //     // display: inline-block;
+  //     position: absolute;
+  //     top: 389px * @scale;
+  //     left: 90px * @scale;
+  //     height: 112px * @scale;
+  //     width: 590px * @scale;
+  //     .background-image("https://h5-promo.black-unique.com/slime/images/8b34f8358f79a34b2d05cd46d0832d52.png");
+  //     animation: scaleY 0.3s 1 ease-in-out;
+  //   }
+  //   .bags-wrapper {
+  //     position: relative;
+  //     width: 100%;
+  //     margin: 0 0 61px * @scale;
+  //     padding-top: 593px * @scale;
+  //     display: flex;
+  //     flex-direction: column;
+  //     justify-content: center;
+  //     align-items: center;
+
+  //     .small-bag {
+  //       position: relative;
+  //       left: 0;
+  //       display: inline-block;
+  //       width: 234px * @scale;
+  //       height: 211px * @scale;
+  //       .background-image("https://h5-promo.black-unique.com/slime/images/e6e74b974a1e579509541222245cab75.png");
+  //       opacity: 0;
+  //       animation: appear2 0.3s 1 0.3s linear forwards;
+  //     }
+  //     .arrow-wrap {
+  //       position: relative;
+  //       left: -150px * @scale;
+  //       bottom: 110px * @scale;
+  //       display: inline-block;
+  //       opacity: 0;
+  //       animation: arrowAppear 0.6s 1 0.6s linear forwards;
+  //       .arrow-right {
+  //         display: inline-block;
+  //         width: 60px * @scale;
+  //         height: 48px * @scale;
+  //         .background-image("https://h5-promo.black-unique.com/slime/images/d2937147110be99ea9ee3b6bb5ddc824.png");
+  //         animation: moveX 0.5s infinite linear;
+  //       }
+  //     }
+  //     .big-bag {
+  //       position: relative;
+  //       left: -300px * @scale;
+  //       display: inline-block;
+  //       width: 380px * @scale;
+  //       height: 334px * @scale;
+  //       .background-image("https://h5-promo.black-unique.com/slime/images/35286a8f9fa8e4a7efa765022a6c7d5a.png");
+  //       // opacity: 0;
+  //       transform: scale(0);
+  //       animation: appearX 0.5s 1 0.6s linear forwards;
+
+  //       .open-btn {
+  //         position: absolute;
+  //         left: 20px * @scale;
+  //         right: 0;
+  //         bottom: 40px * @scale;
+  //         margin: auto;
+  //         display: inline-block;
+  //         width: 120px * @scale;
+  //         height: 120px * @scale;
+  //         .background-image("https://h5-promo.black-unique.com/slime/images/a978cdb1e4f991b4d01a995e07b53b40.png");
+  //         animation: scale 0.8s infinite linear;
+  //       }
+  //     }
+  //     .close-btn {
+  //       display: inline-block;
+  //       margin-top: 60px * @scale;
+  //       height: 50px * @scale;
+  //       width: 50px * @scale;
+  //       .background-image("https://h5-promo.black-unique.com/slime/images/0061786b46ca894987a2bf5b0cae2d73.png");
+  //     }
+  //   }
+  // }
 }
 
 .banner-wrapper {

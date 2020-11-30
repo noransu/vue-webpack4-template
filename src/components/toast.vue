@@ -23,9 +23,12 @@ export default {
   },
   watch: {
     showToast(val){
-      debugger;
       if(val) {
-        debugger;
+        const { duration } = this;
+        const self = this;
+        setTimeout(()=>{
+          self.$emit('update:showToast',false);
+        }, duration)
       }
     },
   },
@@ -33,13 +36,15 @@ export default {
 </script>
 
 <style lang="less" scoped>
+@scale: 0.5;
+
 .toast {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 9999;
+  z-index: 999;
   .toast-wrap {
     display: flex;
     flex-direction: column;
@@ -49,17 +54,17 @@ export default {
     left: 50%;
     position: absolute;
     transform: translate(-50%, -50%);
-    height: 210px;
-    width: 220px;
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 16px;
+    padding: 30px * @scale;
+    // height: 210px * @scale;
+    // width: 220px * @scale;
+    background-color: rgba(51, 51, 51, 0.8);
+    border-radius: 16px * @scale;
     .toast-text {
-      margin-top: 16px;
-      font-size: 30px;
-      font-family: PingFangSC-Semibold, PingFang SC;
-      font-weight: 600;
+      font-size: 28px * @scale;
+      font-family: PingFangSC-Regular, PingFang SC;
+      font-weight: 400;
       color: #ffffff;
-      line-height: 30px;
+      line-height: 42px * @scale;
     }
   }
 }

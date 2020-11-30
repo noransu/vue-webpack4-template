@@ -74,3 +74,35 @@
     opacity: 1;
   }
 }
+
+@keyframes arrowAppear {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+@scale: 0.5;
+    transform: translateX(170px * @scale);
+  }
+}
+
+@keyframes appear2 {
+  0%,
+  62% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes appearX {
+  0%,
+  70% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1) translateX(300px * @scale);
+  }
+}

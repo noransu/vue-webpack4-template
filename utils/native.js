@@ -1,3 +1,7 @@
+import { isIOS, isAndroid } from './ua';
+
+export const { zzc } = window;
+
 /**
  * 调起底部广告插件
  */
@@ -37,3 +41,30 @@ export const dismissBottomAd = () => new Promise(resolve => {
     });
   }
 });
+
+/**
+ * 调起广告插件
+ */
+export function playRewardAdVideo(options = {}, type) {
+  if (type === 'beiye') {
+    options.byAdId = isAndroid ? options.byAndroid : options.byIos;
+    delete options.byAndroid;
+    delete options.byIos;
+  }
+  if (!options.slotId) {
+    const androidSlotId = options.android || '945017263';
+    const iosSlotId = options.ios || '945014509';
+    options.slotId = isAndroid ? androidSlotId : iosSlotId;
+    delete options.ios;
+    delete options.android;
+  }
+
+  return new Promise(resolve => {
+    window.zzc.call('playRewardAdVideo', {
+      ...options,
+      success: resolve,
+      complete: resolve,
+      error: resolve,
+    });
+  });
+}
