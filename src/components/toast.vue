@@ -55,8 +55,6 @@ export default {
     position: absolute;
     transform: translate(-50%, -50%);
     padding: 30px * @scale;
-    // height: 210px * @scale;
-    // width: 220px * @scale;
     background-color: rgba(51, 51, 51, 0.8);
     border-radius: 16px * @scale;
     .toast-text {

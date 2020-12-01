@@ -18,10 +18,6 @@ const handleRes = res => {
   };
 };
 
-const getBagDetail = params => service
-  .get(`${urlPrefix}/luckBagDetail?luckBagId=${params}`)
-  .then(res => handleRes(res));
-
 const openBag = params => service
   .post(`${urlPrefix}/openLuckBag`, {
     ...params,
@@ -40,7 +36,6 @@ const getBagSwell = params => service
 
 
 export {
-  getBagDetail,
   openBag,
   getBagSwell,
   // canOpenLuckBag,

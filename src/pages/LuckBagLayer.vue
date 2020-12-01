@@ -95,26 +95,19 @@
         </div>
       </div>
     </transition>
-    
+    <Toast :toastText="toastText"
+           :showToast.sync="showToast"
+           :duration="duration" />
   </div>
 </template>
 
 <script>
-import { playBottomAdVideo, dismissBottomAd } from '../../utils/native';
-
-const ua = window.navigator.userAgent.toLowerCase();
-
-function funIsIOS(ua) {
-  if (/\bcpu(?: iphone)? os /.test(ua)) {
-    return /\bcpu(?: iphone)? os ([0-9._]+)/.test(ua);
-  }
-  if (ua.indexOf('iph os ') !== -1) {
-    return /\biph os ([0-9_]+)/.test(ua);
-  }
-  return /\bios\b/.test(ua);
-}
-
-const isIOS = funIsIOS(ua);
+import { playRewardAdVideo, playBottomAdVideo, dismissBottomAd } from '../../utils/native';
+import Toast from '../components/toast.vue';
+import stat from '../../utils/stat';
+import { isIOS } from '../../utils/ua';
+import { openBag, getBagSwell } from '../../service/apis/lucky-bag';
+import ModalHelper from '../../utils/modalHelper';
 
 
 export default {
@@ -124,55 +117,62 @@ export default {
       default: false,
     },
     closeOverlay: Function,
-    showFirstBag: {
-      type: Boolean,
-      default: true,
-    },
-    showDoubleBag: {
-      type: Boolean,
-      default: false,
-    },
-    watchVideo: Function,
-    watchDoubleVideo: Function,
-    reward: {
-      type: [Number, String],
-      default: 0,
-    },
+    withdrawMoney: Function,
+    luckBagId: [String, Number],
   },
   components: {
+    Toast,
   },
   data() {
     return {
+      showToast: false,
+      toastText: '您已经拆开过该福袋啦',
+      duration: 2000,
+      reward: 0,
+      showDoubleBag: false,
+      showFirstBag: true,
+      newestLuckBagId: 0,
+      canWatchVideo: true,
     };
   },
-  mounted() {
-    this.$watch(vm => [vm.showOverlay, vm.showFirstBag, vm.showDoubleBag]
-      .join(), newVal => {
-      const newArr = newVal.split(',');
-      const existTrue = newArr.find(item => item === 'true');
-      if (existTrue) {
-        playBottomAdVideo({
-          android: '945343002',
-          ios: '945343003',
-          byAdId: isIOS ? '10003319' : '10003318',
-        });
-        if(this.showOverlay && !this.showFirstBag && !this.showDoubleBag) {
-          this.$parent.duratin = 2000;
-          this.$parent.toastText = '您已经拆开过该福袋啦';
-          this.$parent.showToast = true;
+  watch: {
+    showOverlay: {
+      handler(newVal){
+        this.modalHelper.toggleBlock(newVal);
+        if(newVal) {
+          this.showFirstBag = true;
+          this.showDoubleBag = false;
+          this.$nextTick(()=>{
+            playBottomAdVideo({
+              android: '945343002',
+              ios: '945343003',
+              byAdId: isIOS ? '10003319' : '10003318',
+            });
+          })
+        } else {
+          this.reward = 0;
+          this.canWatchVideo = true;
+          dismissBottomAd();
         }
-      } else {
-        dismissBottomAd();
-      }
-    });
+      },
+      immedidate: true,
+      deep: true,
+    },
+    luckBagId(newVal) {
+      this.newestLuckBagId = newVal;
+    },
+  },
+  created() {
+    this.modalHelper = new ModalHelper({});
+  },
+  mounted() {
   },
   beforeDestroy() {
+    this.reward = 0;
+    this.canWatchVideo = true;
     dismissBottomAd();
   },
   methods: {
-    // watchVideo() {
-    //   this.$emit('watchVideo');
-    // },
 
     formatLuckBagLayerData() {
       return JSON.stringify({
@@ -196,6 +196,64 @@ export default {
         obj_id: 'double_popup_fudai_open',
         obj_type: 'page_fudai',
       });
+    },
+
+    async afterWatchVideo({ luckBagId, clicked, type}){
+      const res = type === 'first' ? await openBag({ luckBagId, clicked }) : await getBagSwell({ luckBagId, clicked });
+      if (res && res.isSuccess) {
+        this.showToast = false;
+        const { expand, luckBagId, reward } = res.data;
+        this.newestLuckBagId = luckBagId;
+        this.reward = reward;
+        this.showFirstBag = false;
+        this.showDoubleBag = !!expand;
+      } else {
+        this.duration = 2000;
+        this.toastText = res.msg;
+        this.showToast = true;
+      }
+    },
+
+    watchVideo(){
+      stat.track('click', {
+        obj_id: 'popup_fudai_open',
+        obj_type: 'page_fudai',
+      });
+      this.playVideo('first');
+    },
+
+    async playVideo(type) {
+      if (!this.canWatchVideo) return;
+      this.canWatchVideo = false;
+      this.duration = 20000;
+      this.toastText = '请稍等...';
+      this.showToast = true;
+      const res = await playRewardAdVideo({
+        android: '945248910',
+        ios: '945248905',
+        byAdId: isIOS ? '10003304' : '10003303',
+      });
+      if (res && res.data) {
+        this.showToast = false;
+        const { newestLuckBagId } = this;
+        this.$emit('afterWatchVideo');
+        this.afterWatchVideo({luckBagId: newestLuckBagId, clicked: res.data.click, type});
+      } else {
+        this.showToast = false;
+        this.duration = 2000;
+        this.toastText = res && res.message ? res.message : '播放失败，请稍后重试';
+        this.showToast = true;
+        // Toast(res && res.message ? res.message : '播放失败，请稍后重试');
+        this.canWatchVideo = true;
+      }
+    },
+
+    watchDoubleVideo() {
+      stat.track('click', {
+        obj_id: 'double_popup_fudai_open',
+        obj_type: 'page_fudai',
+      });
+      this.playVideo('swell');
     },
   },
 };
@@ -256,7 +314,8 @@ export default {
         display: inline-block;
         width: 45px * @scale;
         height: 9px * @scale;
-        .background-image("https://h5-promo.black-unique.com/slime/images/cf44203b79b09695964727736407c695.png");
+        background: url("https://h5-promo.black-unique.com/slime/images/cf44203b79b09695964727736407c695.png")
+          no-repeat center / contain;
       }
 
       .reverse {
@@ -296,7 +355,8 @@ export default {
           display: inline-block;
           width: 45px * @scale;
           height: 9px * @scale;
-          .background-image("https://h5-promo.black-unique.com/slime/images/cf44203b79b09695964727736407c695.png");
+          background: url("https://h5-promo.black-unique.com/slime/images/cf44203b79b09695964727736407c695.png")
+            no-repeat center / contain;
         }
 
         .reverse {
@@ -318,7 +378,8 @@ export default {
         height: 60px * @scale;
         width: 474px * @scale;
         margin-top: 12px * @scale;
-        .background-image("https://h5-promo.black-unique.com/slime/images/8682725f7c05a0236d40dfd861505188.png");
+        background: url("https://h5-promo.black-unique.com/slime/images/8682725f7c05a0236d40dfd861505188.png")
+          no-repeat center / contain;
       }
     }
 
@@ -336,7 +397,8 @@ export default {
         display: inline-block;
         width: 498px * @scale;
         height: 498px * @scale;
-        .background-image("https://h5-promo.black-unique.com/slime/images/8203d04422ce48506562a7bbef30c83b.png");
+        background: url("https://h5-promo.black-unique.com/slime/images/8203d04422ce48506562a7bbef30c83b.png")
+          no-repeat center / contain;
         animation: fallY 0.2s 1 linear;
         margin-top: 145px * @scale;
         .open-btn {
@@ -348,7 +410,9 @@ export default {
           display: inline-block;
           width: 144px * @scale;
           height: 144px * @scale;
-          .background-image("https://h5-promo.black-unique.com/slime/images/a978cdb1e4f991b4d01a995e07b53b40.png");
+          background: url("https://h5-promo.black-unique.com/slime/images/a978cdb1e4f991b4d01a995e07b53b40.png")
+            no-repeat center / contain;
+
           animation: scale 0.8s infinite linear;
         }
       }
@@ -360,7 +424,8 @@ export default {
         display: inline-block;
         height: 50px * @scale;
         width: 50px * @scale;
-        .background-image("https://h5-promo.black-unique.com/slime/images/0061786b46ca894987a2bf5b0cae2d73.png");
+        background: url("https://h5-promo.black-unique.com/slime/images/0061786b46ca894987a2bf5b0cae2d73.png")
+          no-repeat center / contain;
         animation: appear 0.3s 1 0.2s linear forwards;
       }
 
@@ -447,8 +512,8 @@ export default {
         transform: translateX(-50%);
         width: 256px * @scale;
         height: 70px * @scale;
-        .background-image("https://h5-promo.black-unique.com/slime/images/e4fcfc957d4049cdd093e3e7334b948f.png");
-        // border-radius: 34.39px * @scale;
+        background: url("https://h5-promo.black-unique.com/slime/images/e4fcfc957d4049cdd093e3e7334b948f.png")
+          no-repeat center / contain;
         font-size: 34px * @scale;
         font-family: PingFangSC-Semibold, PingFang SC;
         font-weight: 600;
@@ -462,93 +527,6 @@ export default {
       }
     }
   }
-
-  // .overlay-double-content {
-  //   position: relative;
-  //   height: calc(100% - 150px * @scale);
-  //   // display: flex;
-  //   // flex-direction: column;
-  //   // justify-content: center;
-  //   // align-items: center;
-
-  //   .overlay-title {
-  //     // display: inline-block;
-  //     position: absolute;
-  //     top: 389px * @scale;
-  //     left: 90px * @scale;
-  //     height: 112px * @scale;
-  //     width: 590px * @scale;
-  //     .background-image("https://h5-promo.black-unique.com/slime/images/8b34f8358f79a34b2d05cd46d0832d52.png");
-  //     animation: scaleY 0.3s 1 ease-in-out;
-  //   }
-  //   .bags-wrapper {
-  //     position: relative;
-  //     width: 100%;
-  //     margin: 0 0 61px * @scale;
-  //     padding-top: 593px * @scale;
-  //     display: flex;
-  //     flex-direction: column;
-  //     justify-content: center;
-  //     align-items: center;
-
-  //     .small-bag {
-  //       position: relative;
-  //       left: 0;
-  //       display: inline-block;
-  //       width: 234px * @scale;
-  //       height: 211px * @scale;
-  //       .background-image("https://h5-promo.black-unique.com/slime/images/e6e74b974a1e579509541222245cab75.png");
-  //       opacity: 0;
-  //       animation: appear2 0.3s 1 0.3s linear forwards;
-  //     }
-  //     .arrow-wrap {
-  //       position: relative;
-  //       left: -150px * @scale;
-  //       bottom: 110px * @scale;
-  //       display: inline-block;
-  //       opacity: 0;
-  //       animation: arrowAppear 0.6s 1 0.6s linear forwards;
-  //       .arrow-right {
-  //         display: inline-block;
-  //         width: 60px * @scale;
-  //         height: 48px * @scale;
-  //         .background-image("https://h5-promo.black-unique.com/slime/images/d2937147110be99ea9ee3b6bb5ddc824.png");
-  //         animation: moveX 0.5s infinite linear;
-  //       }
-  //     }
-  //     .big-bag {
-  //       position: relative;
-  //       left: -300px * @scale;
-  //       display: inline-block;
-  //       width: 380px * @scale;
-  //       height: 334px * @scale;
-  //       .background-image("https://h5-promo.black-unique.com/slime/images/35286a8f9fa8e4a7efa765022a6c7d5a.png");
-  //       // opacity: 0;
-  //       transform: scale(0);
-  //       animation: appearX 0.5s 1 0.6s linear forwards;
-
-  //       .open-btn {
-  //         position: absolute;
-  //         left: 20px * @scale;
-  //         right: 0;
-  //         bottom: 40px * @scale;
-  //         margin: auto;
-  //         display: inline-block;
-  //         width: 120px * @scale;
-  //         height: 120px * @scale;
-  //         .background-image("https://h5-promo.black-unique.com/slime/images/a978cdb1e4f991b4d01a995e07b53b40.png");
-  //         animation: scale 0.8s infinite linear;
-  //       }
-  //     }
-  //     .close-btn {
-  //       display: inline-block;
-  //       margin-top: 60px * @scale;
-  //       height: 50px * @scale;
-  //       width: 50px * @scale;
-  //       .background-image("https://h5-promo.black-unique.com/slime/images/0061786b46ca894987a2bf5b0cae2d73.png");
-  //     }
-  //   }
-  // }
 }
 
 .banner-wrapper {
@@ -563,7 +541,8 @@ export default {
     display: inline-block;
     width: 100%;
     height: 100%;
-    .background-image("https://h5-promo.black-unique.com/slime/images/ee9c39ad3d21178ff0e823805e1f95f8.png");
+    background: url("https://h5-promo.black-unique.com/slime/images/ee9c39ad3d21178ff0e823805e1f95f8.png")
+      no-repeat center / contain;
     background-size: cover;
     border: 1px * @scale solid #eee;
   }
@@ -575,7 +554,8 @@ export default {
     display: inline-block;
     height: 14.8px * @scale;
     width: 14.8px * @scale;
-    .background-image("https://h5-promo.black-unique.com/slime/images/d1daea599522089b5b966e5b98f25d37.png");
+    background: url("https://h5-promo.black-unique.com/slime/images/d1daea599522089b5b966e5b98f25d37.png")
+      no-repeat center / contain;
   }
 }
 

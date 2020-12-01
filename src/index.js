@@ -1,12 +1,11 @@
 import Vue from 'vue'
-// import router from './router'
 import App from './App'
 
 import vueIntersectionPlugin from '../utils/vueIntersection';
 import stat from '../utils/stat';
 
-import(/* webpackChunkName: "vconsole" */ 'vconsole')
-  .then(({ default: VConsole }) => new VConsole());
+// import(/* webpackChunkName: "vconsole" */ 'vconsole')
+//   .then(({ default: VConsole }) => new VConsole());
 
 // 曝光打点
 Vue.use(vueIntersectionPlugin, {
@@ -21,6 +20,5 @@ Vue.use(vueIntersectionPlugin, {
 
 
 new Vue({
-  // router,
   render: h => h(App)
 }).$mount('#app')

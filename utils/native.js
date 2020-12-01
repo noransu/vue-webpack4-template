@@ -18,9 +18,8 @@ export function playBottomAdVideo(options = {}) {
     sizeStr: '375*94', // 可选字段  默认 '600*90' 可选范围（'600*300' '600*400' '600*500' '600*260' '600*90' '600*150' '640*100' '690*388'）
     byAdId: '10003064', // 倍业bannerId iOS 默认 10003064
   };
-
   return new Promise(resolve => {
-    zzc.call('showBannerAd', {
+    window.zzc.call('showBannerAd', {
       ...defaultOptions,
       ...options,
       success: resolve,
